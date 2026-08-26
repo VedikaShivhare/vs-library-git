@@ -1,0 +1,45 @@
+/* Kerbside global styles.
+   Bootstrap (imported in main.js) handles the grid, breakpoints and base
+   component styling. This file layers Kerbside's own visual identity — a
+   calm, waste-reduction-appropriate palette — on top. */
+
+:root {
+  --kerb-green: #2e7d32;
+  --kerb-green-dark: #1b5e20;
+}
+
+body {
+  background-color: #f7f7f5;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.kerb-hero {
+  background: linear-gradient(135deg, var(--kerb-green-dark), var(--kerb-green));
+  color: #fff;
+  padding: 3rem 1rem;
+}
+
+.kerb-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: #000;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  z-index: 2000;
+}
+
+.kerb-skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
