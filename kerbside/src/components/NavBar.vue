@@ -26,6 +26,11 @@
           <li class="nav-item">
             <router-link class="nav-link" to="/" exact-active-class="active">Home</router-link>
           </li>
+          <li class="nav-item">
+            <router-link class="nav-link" to="/post" exact-active-class="active"
+              >Post an Item</router-link
+            >
+          </li>
         </ul>
       </div>
     </div>
