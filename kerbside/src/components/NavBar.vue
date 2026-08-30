@@ -1,9 +1,6 @@
 <script setup>
-// Bootstrap's collapsible navbar is the clearest, most easily demonstrated
-// piece of BR A.2: on wide screens the links sit inline, and beneath the
-// `lg` breakpoint it collapses to a hamburger menu automatically, with no
-// custom JS required beyond the Bootstrap bundle already imported in
-// main.js.
+// BR (A.2): Responsive navbar that collapses to a hamburger menu below the
+// lg breakpoint, no custom JS needed beyond the Bootstrap bundle.
 </script>
 
 <template>

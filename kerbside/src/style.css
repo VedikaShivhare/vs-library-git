@@ -1,7 +1,4 @@
-/* Kerbside global styles.
-   Bootstrap (imported in main.js) handles the grid, breakpoints and base
-   component styling. This file layers Kerbside's own visual identity — a
-   calm, waste-reduction-appropriate palette — on top. */
+/* Kerbside colours and layout on top of Bootstrap's base styles. */
 
 :root {
   --kerb-green: #2e7d32;

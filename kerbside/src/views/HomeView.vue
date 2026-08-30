@@ -1,7 +1,6 @@
 <script setup>
-// Home page scaffold. Content here is placeholder-level for now — the real
-// listing count, Browse Map link, and Post an Item link are added once
-// those pages exist in a later commit.
+// Static home page with a hero section plus a three-step explainer.
+// No dynamic content here yet, that comes with the Browse Map page.
 </script>
 
 <template>
@@ -15,6 +14,7 @@
     </div>
   </section>
 
+  <!-- BR (A.2): Responsive grid, one column on mobile and three columns on md+. -->
   <section class="container py-5">
     <div class="row g-4 text-center">
       <div class="col-12 col-md-4">

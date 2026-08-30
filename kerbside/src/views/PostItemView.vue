@@ -1,9 +1,8 @@
 <script setup>
+// BR (A.1): Composition API, script setup, plain ref() for state.
 import { ref, computed } from 'vue'
 import suburbList from '../assets/json/suburbs.json'
 
-// Same pattern as the LibraryRegistrationForm activity: one ref() holding
-// a plain object for all the form fields, used directly with v-model.
 const formData = ref({
   title: '',
   description: '',
@@ -19,30 +18,31 @@ const formData = ref({
 const CATEGORIES = ['Furniture', 'Appliances', 'Bikes & Sports', 'Electronics', 'Garden', 'Other']
 const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Needs repair']
 
-// Shows the "please specify" box only once the resident has picked
-// "Other" from the category dropdown.
+// Show the "please specify" field only when Other is picked.
 const isOtherCategory = computed(() => formData.value.category === 'Other')
 
-// List of real Victorian suburb names, used both for the search
-// suggestions and to check the suburb the resident types against an
-// actual place. Some suburb names appear more than once in the source
-// data under different postcodes, so duplicates are removed here.
+// BR (B.2): Dynamic data fetched from an external JSON file.
+// suburbNames comes from suburbs.json, not a hardcoded list. Duplicate
+// names (same suburb, different postcode) are removed here.
 const suburbNames = [...new Set(suburbList.map((entry) => entry.suburb))].sort()
 
-// Error messages, one per field that needs checking. Plain strings, empty
-// when there is no error - checked with v-if in the template the same way
-// as the rest of the form.
-const errorMessage = ref('')
+// One error slot per field. Filled in or cleared by that field's own
+// validate function.
+const errors = ref({
+  title: null,
+  description: null,
+  category: null,
+  suburb: null,
+  postcode: null,
+  collectionDate: null,
+})
 
-// Submitted listings are pushed into this array and shown as cards below
-// the form, the same way the library registrations were shown as cards
-// after submission.
+// BR (B.2): Submitted listings are stored in state and rendered dynamically.
 const submittedCards = ref([])
 
-// Builds a YYYY-MM-DD string from the LOCAL date, not UTC. Date's own
-// toISOString() converts to UTC first, which is a day behind whenever it
-// is already tomorrow in UTC but still today here in Melbourne - that
-// would let residents pick a collection date that has already passed.
+// Build a YYYY-MM-DD string from local time, not UTC.
+// toISOString() converts to UTC first, which is a day behind once it's
+// already tomorrow in UTC but still today in Melbourne.
 function toLocalIsoDate(date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -50,87 +50,99 @@ function toLocalIsoDate(date) {
   return `${year}-${month}-${day}`
 }
 
-// Collection date can't be before today or more than 14 days out, so the
-// date input itself is restricted using min/max.
 const todayIso = toLocalIsoDate(new Date())
 const maxDate = new Date()
 maxDate.setDate(maxDate.getDate() + 14)
 const maxIso = toLocalIsoDate(maxDate)
 
-function handleSubmit() {
-  // Check the required fields are filled in before accepting the listing.
-  if (
-    formData.value.title.trim() === '' ||
-    formData.value.description.trim() === '' ||
-    formData.value.category === '' ||
-    formData.value.suburb.trim() === '' ||
-    formData.value.postcode.trim() === '' ||
-    formData.value.collectionDate === ''
-  ) {
-    errorMessage.value = 'Please fill in all the required fields before publishing.'
+// BR (B.1): Title is required and must be at least 3 characters.
+function validateTitle(blur) {
+  const value = formData.value.title.trim()
+  if (value.length < 3) {
+    if (blur) errors.value.title = 'Title must be at least 3 characters.'
+  } else if (!/[a-zA-Z]/.test(value)) {
+    if (blur) errors.value.title = 'Title must contain at least one letter.'
+  } else {
+    errors.value.title = null
+  }
+}
+
+// BR (B.1): Description must be at least 10 characters.
+function validateDescription(blur) {
+  const value = formData.value.description.trim()
+  if (value.length < 10) {
+    if (blur) errors.value.description = 'Description must be at least 10 characters.'
+  } else {
+    errors.value.description = null
+  }
+}
+
+// BR (B.1): Category is required, plus a specify field when Other is picked.
+function validateCategory(blur) {
+  if (formData.value.category === '') {
+    if (blur) errors.value.category = 'Please select a category.'
+  } else if (isOtherCategory.value && formData.value.otherCategory.trim() === '') {
+    if (blur) errors.value.category = 'Please specify what the item is.'
+  } else {
+    errors.value.category = null
+  }
+}
+
+// BR (B.1): Suburb must match the real Victorian suburb list (BR B.2).
+function validateSuburb(blur) {
+  const value = formData.value.suburb.trim()
+  const suburbMatch = suburbNames.some((name) => name.toLowerCase() === value.toLowerCase())
+  if (value === '') {
+    if (blur) errors.value.suburb = 'Suburb is required.'
+  } else if (!suburbMatch) {
+    if (blur)
+      errors.value.suburb =
+        'That suburb was not found in the Victorian suburb list. Please pick one from the suggestions as you type.'
+  } else {
+    errors.value.suburb = null
+  }
+}
+
+// BR (B.1): Postcode must be 4 digits within the Victorian range.
+function validatePostcode(blur) {
+  const value = formData.value.postcode.trim()
+  if (!/^\d{4}$/.test(value)) {
+    if (blur) errors.value.postcode = 'Postcode must be exactly 4 digits.'
+  } else if (Number(value) < 3000 || Number(value) > 3999) {
+    if (blur) errors.value.postcode = 'Please enter a Victorian postcode (3000-3999).'
+  } else {
+    errors.value.postcode = null
+  }
+}
+
+// BR (B.1): Collection date must fall within the next 14 days.
+function validateCollectionDate(blur) {
+  const value = formData.value.collectionDate
+  if (value === '') {
+    if (blur) errors.value.collectionDate = 'Collection date is required.'
+  } else if (value < todayIso || value > maxIso) {
+    if (blur) errors.value.collectionDate = 'Collection date must be within the next 14 days.'
+  } else {
+    errors.value.collectionDate = null
+  }
+}
+
+function submitForm() {
+  // Run every validator with blur = true so all errors show at once,
+  // even for a field the resident never actually clicked into.
+  validateTitle(true)
+  validateDescription(true)
+  validateCategory(true)
+  validateSuburb(true)
+  validatePostcode(true)
+  validateCollectionDate(true)
+
+  const hasErrors = Object.values(errors.value).some((message) => message !== null)
+  if (hasErrors) {
     return
   }
 
-  // If "Other" was picked as the category, the resident has to say what
-  // the item actually is in the extra field that appears.
-  if (isOtherCategory.value && formData.value.otherCategory.trim() === '') {
-    errorMessage.value = 'Please specify what the item is.'
-    return
-  }
-
-  // Title and description need to actually describe the item, not just
-  // be a single character, a number, or a random word, so a minimum
-  // length is checked, plus the title has to contain at least one letter.
-  if (formData.value.title.trim().length < 3) {
-    errorMessage.value = 'Title must be at least 3 characters.'
-    return
-  }
-  if (!/[a-zA-Z]/.test(formData.value.title)) {
-    errorMessage.value = 'Title must contain at least one letter.'
-    return
-  }
-  if (formData.value.description.trim().length < 10) {
-    errorMessage.value = 'Description must be at least 10 characters.'
-    return
-  }
-
-  // Suburb has to be one of the real Victorian suburbs in the dropdown
-  // list, not free text - checked case-insensitively so picking or
-  // typing "clayton" still matches "Clayton" in the list.
-  const suburbMatch = suburbNames.some(
-    (name) => name.toLowerCase() === formData.value.suburb.trim().toLowerCase(),
-  )
-  if (!suburbMatch) {
-    errorMessage.value =
-      'That suburb was not found in the Victorian suburb list. Please pick one from the suggestions as you type.'
-    return
-  }
-
-  // Postcode has to be a 4 digit Victorian postcode (3000-3999).
-  const postcodeTrimmed = formData.value.postcode.trim()
-  if (!/^\d{4}$/.test(postcodeTrimmed)) {
-    errorMessage.value = 'Postcode must be exactly 4 digits.'
-    return
-  }
-  const postcodeNumber = Number(postcodeTrimmed)
-  if (postcodeNumber < 3000 || postcodeNumber > 3999) {
-    errorMessage.value = 'Please enter a Victorian postcode (3000-3999).'
-    return
-  }
-
-  // Collection date has to be within the next 14 days, matching the
-  // min/max already set on the input.
-  if (formData.value.collectionDate < todayIso || formData.value.collectionDate > maxIso) {
-    errorMessage.value = 'Collection date must be within the next 14 days.'
-    return
-  }
-
-  errorMessage.value = ''
-
-  // Add this listing to the list of cards, same as pushing a new
-  // registration into submittedCards in the lecture example. When the
-  // category is "Other", the card shows what the resident typed instead
-  // of the plain word "Other".
+  // Show what the resident typed instead of the word "Other".
   submittedCards.value.push({
     title: formData.value.title,
     description: formData.value.description,
@@ -142,7 +154,10 @@ function handleSubmit() {
     giverName: formData.value.giverName === '' ? 'Anonymous resident' : formData.value.giverName,
   })
 
-  // Reset the form for the next listing.
+  clearForm()
+}
+
+function clearForm() {
   formData.value = {
     title: '',
     description: '',
@@ -154,6 +169,14 @@ function handleSubmit() {
     collectionDate: '',
     giverName: '',
   }
+  errors.value = {
+    title: null,
+    description: null,
+    category: null,
+    suburb: null,
+    postcode: null,
+    collectionDate: null,
+  }
 }
 </script>
 
@@ -161,14 +184,20 @@ function handleSubmit() {
   <div class="container py-4" style="max-width: 640px">
     <h1 class="h3 mb-4">Post an Item</h1>
 
-    <div v-if="errorMessage" class="alert alert-danger" role="alert">
-      {{ errorMessage }}
-    </div>
-
-    <form novalidate @submit.prevent="handleSubmit">
+    <!-- novalidate: our own validators run instead of the browser's -->
+    <!-- native check, which fails silently against the date min/max. -->
+    <form novalidate @submit.prevent="submitForm">
       <div class="mb-3">
         <label for="title" class="form-label">Title</label>
-        <input id="title" v-model="formData.title" type="text" class="form-control" />
+        <input
+          id="title"
+          v-model="formData.title"
+          type="text"
+          class="form-control"
+          @blur="() => validateTitle(true)"
+          @input="() => validateTitle(false)"
+        />
+        <div v-if="errors.title" class="text-danger">{{ errors.title }}</div>
       </div>
 
       <div class="mb-3">
@@ -178,18 +207,29 @@ function handleSubmit() {
           v-model="formData.description"
           class="form-control"
           rows="3"
+          @blur="() => validateDescription(true)"
+          @input="() => validateDescription(false)"
         ></textarea>
+        <div v-if="errors.description" class="text-danger">{{ errors.description }}</div>
       </div>
 
+      <!-- BR (A.2): Responsive grid, stacks below sm and sits side by side above it. -->
       <div class="row">
         <div class="col-12 col-sm-6 mb-3">
           <label for="category" class="form-label">Category</label>
-          <select id="category" v-model="formData.category" class="form-select">
+          <select
+            id="category"
+            v-model="formData.category"
+            class="form-select"
+            @blur="() => validateCategory(true)"
+            @change="() => validateCategory(false)"
+          >
             <option value="" disabled>Select a category</option>
             <option v-for="option in CATEGORIES" :key="option" :value="option">
               {{ option }}
             </option>
           </select>
+          <div v-if="errors.category" class="text-danger">{{ errors.category }}</div>
         </div>
 
         <div class="col-12 col-sm-6 mb-3">
@@ -202,8 +242,6 @@ function handleSubmit() {
         </div>
       </div>
 
-      <!-- Only shown once "Other" is picked above, so the resident can say
-           what the item actually is. -->
       <div v-if="isOtherCategory" class="mb-3">
         <label for="otherCategory" class="form-label">Please specify</label>
         <input
@@ -212,6 +250,8 @@ function handleSubmit() {
           type="text"
           class="form-control"
           placeholder="e.g. Exercise equipment"
+          @blur="() => validateCategory(true)"
+          @input="() => validateCategory(false)"
         />
       </div>
 
@@ -224,10 +264,13 @@ function handleSubmit() {
             type="text"
             class="form-control"
             list="suburbOptions"
+            @blur="() => validateSuburb(true)"
+            @input="() => validateSuburb(false)"
           />
           <datalist id="suburbOptions">
             <option v-for="name in suburbNames" :key="name" :value="name"></option>
           </datalist>
+          <div v-if="errors.suburb" class="text-danger">{{ errors.suburb }}</div>
           <div class="form-text">Start typing to search all Victorian suburbs, e.g. Clayton.</div>
         </div>
 
@@ -239,7 +282,10 @@ function handleSubmit() {
             type="text"
             inputmode="numeric"
             class="form-control"
+            @blur="() => validatePostcode(true)"
+            @input="() => validatePostcode(false)"
           />
+          <div v-if="errors.postcode" class="text-danger">{{ errors.postcode }}</div>
           <div class="form-text">4-digit Victorian postcode, e.g. 3168.</div>
         </div>
       </div>
@@ -253,7 +299,10 @@ function handleSubmit() {
           class="form-control"
           :min="todayIso"
           :max="maxIso"
+          @blur="() => validateCollectionDate(true)"
+          @input="() => validateCollectionDate(false)"
         />
+        <div v-if="errors.collectionDate" class="text-danger">{{ errors.collectionDate }}</div>
         <div class="form-text">Must be within the next 14 days.</div>
       </div>
 
@@ -266,9 +315,7 @@ function handleSubmit() {
       <button type="submit" class="btn btn-success">Publish listing</button>
     </form>
 
-    <!-- Submitted listings, shown as cards underneath the form. Each fact
-         is on its own line with a label, instead of one dash-separated
-         line, so the card is easy to read at a glance. -->
+    <!-- BR (B.2): Listings rendered dynamically from submittedCards. -->
     <div v-if="submittedCards.length > 0" class="mt-5">
       <h2 class="h5 mb-3">Your listings this session</h2>
       <div class="card mb-3" v-for="(card, index) in submittedCards" :key="index">
