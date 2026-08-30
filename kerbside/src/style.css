@@ -40,3 +40,13 @@ body {
   left: 0.5rem;
   top: 0.5rem;
 }
+
+/* BR (B.1): Inline form errors, icon-led and tighter to the field they
+   belong to so they read as clear feedback rather than plain red text. */
+.form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}

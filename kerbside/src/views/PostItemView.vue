@@ -8,7 +8,7 @@ const formData = ref({
   description: '',
   category: '',
   otherCategory: '',
-  condition: 'Good',
+  condition: '',
   suburb: '',
   postcode: '',
   collectionDate: '',
@@ -26,12 +26,20 @@ const isOtherCategory = computed(() => formData.value.category === 'Other')
 // names (same suburb, different postcode) are removed here.
 const suburbNames = [...new Set(suburbList.map((entry) => entry.suburb))].sort()
 
+// The datalist normally offers every suburb. Once a valid postcode is
+// entered, this narrows to just the suburbs that postcode actually
+// covers (a Victorian postcode is shared by several suburbs, e.g. 3168
+// covers both Clayton and Notting Hill, so there usually isn't one
+// "correct" answer to auto-fill).
+const suburbSuggestions = ref(suburbNames)
+
 // One error slot per field. Filled in or cleared by that field's own
 // validate function.
 const errors = ref({
   title: null,
   description: null,
   category: null,
+  condition: null,
   suburb: null,
   postcode: null,
   collectionDate: null,
@@ -55,13 +63,24 @@ const maxDate = new Date()
 maxDate.setDate(maxDate.getDate() + 14)
 const maxIso = toLocalIsoDate(maxDate)
 
-// BR (B.1): Title is required and must be at least 3 characters.
+// A "real" word needs more than one distinct character repeated, e.g.
+// "aaaa" or "----" should not pass just because they clear the length
+// check. This does not ban numbers or symbols. e.g. "IKEA MALM desk (2
+// drawers)" is a perfectly normal real-world listing title.
+function isJunkText(value) {
+  const cleaned = value.replace(/\s+/g, '')
+  if (cleaned.length === 0) return true
+  return new Set(cleaned.toLowerCase()).size === 1
+}
+
+// BR (B.1): Title is required, must be at least 3 characters, and can't
+// be junk (e.g. all the same character repeated).
 function validateTitle(blur) {
   const value = formData.value.title.trim()
   if (value.length < 3) {
     if (blur) errors.value.title = 'Title must be at least 3 characters.'
-  } else if (!/[a-zA-Z]/.test(value)) {
-    if (blur) errors.value.title = 'Title must contain at least one letter.'
+  } else if (isJunkText(value)) {
+    if (blur) errors.value.title = 'Please enter a real title for the item.'
   } else {
     errors.value.title = null
   }
@@ -77,14 +96,29 @@ function validateDescription(blur) {
   }
 }
 
-// BR (B.1): Category is required, plus a specify field when Other is picked.
+// BR (B.1): Category is required, plus a specify field when Other is
+// picked. The specify field needs a real word, not just any keystroke,
+// same "not junk" rule as the title.
 function validateCategory(blur) {
+  const otherValue = formData.value.otherCategory.trim()
   if (formData.value.category === '') {
     if (blur) errors.value.category = 'Please select a category.'
-  } else if (isOtherCategory.value && formData.value.otherCategory.trim() === '') {
-    if (blur) errors.value.category = 'Please specify what the item is.'
+  } else if (isOtherCategory.value && otherValue.length < 2) {
+    if (blur) errors.value.category = 'Please specify what the item is (at least 2 characters).'
+  } else if (isOtherCategory.value && isJunkText(otherValue)) {
+    if (blur) errors.value.category = 'Please describe the item, not just repeated characters.'
   } else {
     errors.value.category = null
+  }
+}
+
+// BR (B.1): Condition is required, same as Category, instead of quietly
+// defaulting to "Good" without the resident choosing it.
+function validateCondition(blur) {
+  if (formData.value.condition === '') {
+    if (blur) errors.value.condition = 'Please select a condition.'
+  } else {
+    errors.value.condition = null
   }
 }
 
@@ -95,9 +129,7 @@ function validateSuburb(blur) {
   if (value === '') {
     if (blur) errors.value.suburb = 'Suburb is required.'
   } else if (!suburbMatch) {
-    if (blur)
-      errors.value.suburb =
-        'That suburb was not found in the Victorian suburb list. Please pick one from the suggestions as you type.'
+    if (blur) errors.value.suburb = 'Choose a suburb from the list.'
   } else {
     errors.value.suburb = null
   }
@@ -112,6 +144,48 @@ function validatePostcode(blur) {
     if (blur) errors.value.postcode = 'Please enter a Victorian postcode (3000-3999).'
   } else {
     errors.value.postcode = null
+  }
+}
+
+// Convenience only, not a validation rule. A Victorian postcode almost
+// always covers more than one suburb (3168 = Clayton + Notting Hill),
+// so this can't just guess. Instead: if the postcode covers exactly one
+// suburb, fill it in; if it covers several, narrow the suburb
+// suggestions down to just those so the resident picks from a short,
+// correct list instead of all ~3,300 Victorian suburbs. Never overwrites
+// a suburb the resident already typed.
+function autoFillSuburbFromPostcode() {
+  const value = formData.value.postcode.trim()
+  if (!/^\d{4}$/.test(value)) {
+    suburbSuggestions.value = suburbNames
+    return
+  }
+  const matches = [...new Set(suburbList.filter((entry) => entry.postcode === value).map((entry) => entry.suburb))]
+  if (matches.length === 0) {
+    suburbSuggestions.value = suburbNames
+    return
+  }
+  suburbSuggestions.value = matches.sort()
+  if (matches.length === 1 && formData.value.suburb.trim() === '') {
+    formData.value.suburb = matches[0]
+    validateSuburb(false)
+  }
+}
+
+// Same idea in the other direction. Most suburbs sit in exactly one
+// postcode, so this one can auto-fill more often, but a handful of large
+// suburbs span more than one postcode, so it only fills when the match
+// is unique, and never overwrites a postcode the resident already typed.
+function autoFillPostcodeFromSuburb() {
+  const value = formData.value.suburb.trim()
+  const matches = [
+    ...new Set(
+      suburbList.filter((entry) => entry.suburb.toLowerCase() === value.toLowerCase()).map((entry) => entry.postcode),
+    ),
+  ]
+  if (matches.length === 1 && formData.value.postcode.trim() === '') {
+    formData.value.postcode = matches[0]
+    validatePostcode(false)
   }
 }
 
@@ -133,6 +207,7 @@ function submitForm() {
   validateTitle(true)
   validateDescription(true)
   validateCategory(true)
+  validateCondition(true)
   validateSuburb(true)
   validatePostcode(true)
   validateCollectionDate(true)
@@ -163,7 +238,7 @@ function clearForm() {
     description: '',
     category: '',
     otherCategory: '',
-    condition: 'Good',
+    condition: '',
     suburb: '',
     postcode: '',
     collectionDate: '',
@@ -173,10 +248,12 @@ function clearForm() {
     title: null,
     description: null,
     category: null,
+    condition: null,
     suburb: null,
     postcode: null,
     collectionDate: null,
   }
+  suburbSuggestions.value = suburbNames
 }
 </script>
 
@@ -197,7 +274,9 @@ function clearForm() {
           @blur="() => validateTitle(true)"
           @input="() => validateTitle(false)"
         />
-        <div v-if="errors.title" class="text-danger">{{ errors.title }}</div>
+        <div v-if="errors.title" class="text-danger form-error">
+          <span aria-hidden="true">&#9888;</span> {{ errors.title }}
+        </div>
       </div>
 
       <div class="mb-3">
@@ -210,7 +289,9 @@ function clearForm() {
           @blur="() => validateDescription(true)"
           @input="() => validateDescription(false)"
         ></textarea>
-        <div v-if="errors.description" class="text-danger">{{ errors.description }}</div>
+        <div v-if="errors.description" class="text-danger form-error">
+          <span aria-hidden="true">&#9888;</span> {{ errors.description }}
+        </div>
       </div>
 
       <!-- BR (A.2): Responsive grid, stacks below sm and sits side by side above it. -->
@@ -229,16 +310,28 @@ function clearForm() {
               {{ option }}
             </option>
           </select>
-          <div v-if="errors.category" class="text-danger">{{ errors.category }}</div>
+          <div v-if="errors.category" class="text-danger form-error">
+            <span aria-hidden="true">&#9888;</span> {{ errors.category }}
+          </div>
         </div>
 
         <div class="col-12 col-sm-6 mb-3">
           <label for="condition" class="form-label">Condition</label>
-          <select id="condition" v-model="formData.condition" class="form-select">
+          <select
+            id="condition"
+            v-model="formData.condition"
+            class="form-select"
+            @blur="() => validateCondition(true)"
+            @change="() => validateCondition(false)"
+          >
+            <option value="" disabled>Select condition</option>
             <option v-for="option in CONDITIONS" :key="option" :value="option">
               {{ option }}
             </option>
           </select>
+          <div v-if="errors.condition" class="text-danger form-error">
+            <span aria-hidden="true">&#9888;</span> {{ errors.condition }}
+          </div>
         </div>
       </div>
 
@@ -264,14 +357,22 @@ function clearForm() {
             type="text"
             class="form-control"
             list="suburbOptions"
-            @blur="() => validateSuburb(true)"
+            autocomplete="off"
+            @blur="
+              () => {
+                validateSuburb(true)
+                autoFillPostcodeFromSuburb()
+              }
+            "
             @input="() => validateSuburb(false)"
           />
           <datalist id="suburbOptions">
-            <option v-for="name in suburbNames" :key="name" :value="name"></option>
+            <option v-for="name in suburbSuggestions" :key="name" :value="name"></option>
           </datalist>
-          <div v-if="errors.suburb" class="text-danger">{{ errors.suburb }}</div>
-          <div class="form-text">Start typing to search all Victorian suburbs, e.g. Clayton.</div>
+          <div v-if="errors.suburb" class="text-danger form-error">
+            <span aria-hidden="true">&#9888;</span> {{ errors.suburb }}
+          </div>
+          <div class="form-text">Enter a valid Victorian suburb.</div>
         </div>
 
         <div class="col-12 col-sm-6 mb-3">
@@ -282,11 +383,23 @@ function clearForm() {
             type="text"
             inputmode="numeric"
             class="form-control"
-            @blur="() => validatePostcode(true)"
-            @input="() => validatePostcode(false)"
+            @blur="
+              () => {
+                validatePostcode(true)
+                autoFillSuburbFromPostcode()
+              }
+            "
+            @input="
+              () => {
+                validatePostcode(false)
+                autoFillSuburbFromPostcode()
+              }
+            "
           />
-          <div v-if="errors.postcode" class="text-danger">{{ errors.postcode }}</div>
-          <div class="form-text">4-digit Victorian postcode, e.g. 3168.</div>
+          <div v-if="errors.postcode" class="text-danger form-error">
+            <span aria-hidden="true">&#9888;</span> {{ errors.postcode }}
+          </div>
+          <div class="form-text">Enter a valid 4-digit postcode.</div>
         </div>
       </div>
 
@@ -302,7 +415,9 @@ function clearForm() {
           @blur="() => validateCollectionDate(true)"
           @input="() => validateCollectionDate(false)"
         />
-        <div v-if="errors.collectionDate" class="text-danger">{{ errors.collectionDate }}</div>
+        <div v-if="errors.collectionDate" class="text-danger form-error">
+          <span aria-hidden="true">&#9888;</span> {{ errors.collectionDate }}
+        </div>
         <div class="form-text">Must be within the next 14 days.</div>
       </div>
 
