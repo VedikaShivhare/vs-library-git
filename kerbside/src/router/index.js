@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import PostItemView from '../views/PostItemView.vue'
+import RegisterView from '../views/RegisterView.vue'
 
 // Only routes with a built page are listed here.
 const router = createRouter({
@@ -15,6 +16,11 @@ const router = createRouter({
       path: '/post',
       name: 'post',
       component: PostItemView,
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: RegisterView,
     },
   ],
 })

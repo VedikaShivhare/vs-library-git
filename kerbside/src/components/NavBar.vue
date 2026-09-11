@@ -28,6 +28,11 @@
               >Post an Item</router-link
             >
           </li>
+          <li class="nav-item">
+            <router-link class="nav-link" to="/register" exact-active-class="active"
+              >Register</router-link
+            >
+          </li>
         </ul>
       </div>
     </div>
