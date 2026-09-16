@@ -14,3 +14,26 @@
 import { ref } from 'vue'
 
 export const submittedCards = ref([])
+
+// BR (C.3): Aggregated rating score.
+//
+// The five possible star values a resident can give an item. Written as
+// a named array (rather than looping 1 to 5 inline wherever stars are
+// drawn) so the star widget in BrowseItemsView.vue can just v-for over
+// this list, the same v-for-over-an-array approach taught in Week 2
+// (Step 3, "v-for directive") for rendering a row per array element.
+export const RATING_STARS = [1, 2, 3, 4, 5]
+
+// Adds one rating to a card. Each card holds its own ratings array (set
+// up as an empty array when the card is created in PostItemView.vue),
+// and rating an item just pushes the chosen star value into that array
+// - the same array.push() pattern already used to add a whole card to
+// submittedCards, just pushing a single number instead of an object.
+//
+// Every resident's rating is kept, not just the latest one, because the
+// BR asks for an aggregated score "from all users" - averaging the
+// whole array is what makes the score reflect every resident who rated
+// the item, not only whoever clicked most recently.
+export function addRating(card, stars) {
+  card.ratings.push(stars)
+}

@@ -230,6 +230,9 @@ function submitForm() {
     postcode: formData.value.postcode,
     collectionDate: formData.value.collectionDate,
     giverName: formData.value.giverName === '' ? 'Anonymous resident' : formData.value.giverName,
+    // BR (C.3): Starts empty - an array to hold every star rating this
+    // item receives, one number (1 to 5) per resident who rates it.
+    ratings: [],
   })
 
   clearForm()

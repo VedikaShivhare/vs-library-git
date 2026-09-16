@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import PostItemView from '../views/PostItemView.vue'
+import BrowseItemsView from '../views/BrowseItemsView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import LoginView from '../views/LoginView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
@@ -21,6 +22,13 @@ const router = createRouter({
       path: '/post',
       name: 'post',
       component: PostItemView,
+    },
+    // BR (C.3): Open to everyone, logged in or not - no allowedRoles
+    // meta, so the beforeEach guard below lets every visitor through.
+    {
+      path: '/browse',
+      name: 'browse',
+      component: BrowseItemsView,
     },
     {
       path: '/register',

@@ -51,6 +51,13 @@ function handleLogOut() {
               >Post an Item</router-link
             >
           </li>
+          <!-- BR (C.3): Open to everyone, so this link sits alongside -->
+          <!-- Home and Post an Item rather than inside a role check. -->
+          <li class="nav-item">
+            <router-link class="nav-link" to="/browse" exact-active-class="active"
+              >Browse Items</router-link
+            >
+          </li>
 
           <!-- BR (C.2): Only Council Officer and Admin accounts see this link. -->
           <li
