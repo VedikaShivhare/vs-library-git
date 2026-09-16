@@ -1,31 +1,41 @@
 <script setup>
-// BR (C.1): Basic authentication - registration half. Creates a user
-// account and stores it client-side (no Firebase, no backend, matches
-// the "basic app" allowance for this assignment).
+// BR (C.1): Basic authentication - registration half.
+//
+// This page follows the same form-plus-validation pattern taught in
+// Week 4 (Activity 3, "Add Form Validation using Vue"): a formData ref
+// holding the field values, an errors ref holding one error slot per
+// field, and a validateX(blur) function per field that either sets or
+// clears that field's error message.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { loadUsers, saveUser, logIn } from '../auth.js'
 
 const router = useRouter()
 
+// formData holds what the resident has typed so far. Matches the
+// object-of-fields shape used for formData in the Week 4 user
+// information form.
 const formData = ref({
   name: '',
   email: '',
   password: '',
 })
 
-// One error slot per field, same pattern as PostItemView.
+// errors holds one message per field, starting at null (meaning "no
+// error yet"), exactly like the errors ref in Week 4.
 const errors = ref({
   name: null,
   email: null,
   password: null,
 })
 
-// Set after a successful registration so the form can show a short
-// confirmation before sending the resident on to log in.
-const registeredName = ref(null)
+// Set to true once registration succeeds, so the template can swap the
+// form out for a short confirmation message instead of just vanishing.
+const justRegistered = ref(false)
 
-// BR (C.1): Name is required, same "must be at least a couple of
-// characters" rule as the item title on the Post an Item page.
+// BR (C.1): Name must be at least 2 characters. Same shape as the
+// validateName function from Week 4, just with a different minimum
+// length since a real name is usually shorter than an item title.
 function validateName(blur) {
   const value = formData.value.name.trim()
   if (value.length < 2) {
@@ -35,48 +45,56 @@ function validateName(blur) {
   }
 }
 
-// BR (C.1): Email is required and must look like a real email address.
-// This is a basic shape check, not full RFC validation - good enough for
-// a client-side-only account system.
+// BR (C.1): Email is required and must contain an @ symbol followed by
+// a domain. It also has to be unique, since two accounts sharing one
+// email would make it impossible to tell which account belongs to
+// which resident when logging in.
 function validateEmail(blur) {
   const value = formData.value.email.trim()
   const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+  const alreadyRegistered = loadUsers().some(
+    (user) => user.email.toLowerCase() === value.toLowerCase(),
+  )
   if (value === '') {
     if (blur) errors.value.email = 'Email is required.'
   } else if (!looksLikeEmail) {
     if (blur) errors.value.email = 'Please enter a valid email address.'
-  } else if (blur && emailAlreadyUsed(value)) {
-    errors.value.email = 'An account with this email already exists.'
+  } else if (alreadyRegistered) {
+    if (blur) errors.value.email = 'An account with this email already exists.'
   } else {
     errors.value.email = null
   }
 }
 
-// BR (C.1): Password must be at least 8 characters. Kept to length only
-// for now - this is the first, basic version of authentication.
+// BR (C.1): Password must be at least 8 characters, contain an
+// uppercase letter, a lowercase letter and a number. This follows the
+// same set of checks as the validatePassword function in Week 4
+// (Activity 3.7), minus the special-character rule, since that rule
+// tends to frustrate residents on what is meant to be a simple
+// community listing app rather than a banking system.
 function validatePassword(blur) {
   const value = formData.value.password
-  if (value.length < 8) {
-    if (blur) errors.value.password = 'Password must be at least 8 characters.'
+  const minLength = 8
+  const hasUppercase = /[A-Z]/.test(value)
+  const hasLowercase = /[a-z]/.test(value)
+  const hasNumber = /\d/.test(value)
+
+  if (value.length < minLength) {
+    if (blur) errors.value.password = `Password must be at least ${minLength} characters long.`
+  } else if (!hasUppercase) {
+    if (blur) errors.value.password = 'Password must contain at least one uppercase letter.'
+  } else if (!hasLowercase) {
+    if (blur) errors.value.password = 'Password must contain at least one lowercase letter.'
+  } else if (!hasNumber) {
+    if (blur) errors.value.password = 'Password must contain at least one number.'
   } else {
     errors.value.password = null
   }
 }
 
-// Reads existing accounts out of localStorage. Returns an empty array
-// the first time the app runs, before any account exists yet.
-function loadUsers() {
-  const stored = localStorage.getItem('kerbsideUsers')
-  return stored ? JSON.parse(stored) : []
-}
-
-function emailAlreadyUsed(email) {
-  return loadUsers().some((user) => user.email.toLowerCase() === email.trim().toLowerCase())
-}
-
 function submitForm() {
   // Run every validator with blur = true so all errors show at once,
-  // same approach as the Post an Item form.
+  // the same approach used in the Week 4 submitForm function.
   validateName(true)
   validateEmail(true)
   validatePassword(true)
@@ -86,19 +104,23 @@ function submitForm() {
     return
   }
 
-  // BR (C.1): Save the new account. Storing the password in plain text
-  // in localStorage is not real-world secure, but there is no backend in
-  // this basic version of the app to hash it against - this is flagged
-  // as a known limitation, not a claim of production-grade security.
-  const users = loadUsers()
-  users.push({
+  // BR (C.1): Save the new account into the users array in localStorage
+  // so it is still there the next time the resident visits. Storing the
+  // password as plain text is a known limitation of a client-side-only
+  // app with no server to hash it against - there is no database here,
+  // just the browser's own storage.
+  const newUser = {
     name: formData.value.name.trim(),
     email: formData.value.email.trim(),
     password: formData.value.password,
-  })
-  localStorage.setItem('kerbsideUsers', JSON.stringify(users))
+  }
+  saveUser(newUser)
 
-  registeredName.value = formData.value.name.trim()
+  // Log the resident straight in after registering, rather than making
+  // them fill out the login form again with the details they only just
+  // typed. This is what keeps the experience seamless.
+  logIn(newUser)
+  justRegistered.value = true
 
   setTimeout(() => {
     router.push('/')
@@ -110,8 +132,8 @@ function submitForm() {
   <div class="container py-4" style="max-width: 480px">
     <h1 class="h3 mb-4">Create an account</h1>
 
-    <div v-if="registeredName" class="alert alert-success" role="alert">
-      Account created for {{ registeredName }}. Taking you to the home page&hellip;
+    <div v-if="justRegistered" class="alert alert-success" role="alert">
+      Account created for {{ formData.name }}. Taking you to the home page&hellip;
     </div>
 
     <!-- novalidate: our own validators run instead of the browser's native check. -->
@@ -162,6 +184,11 @@ function submitForm() {
       </div>
 
       <button type="submit" class="btn btn-success">Create account</button>
+
+      <p class="mt-3 mb-0">
+        Already have an account?
+        <router-link to="/login">Log in</router-link>
+      </p>
     </form>
   </div>
 </template>
