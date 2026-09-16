@@ -6,7 +6,16 @@
 // currentUser state, the same conditional-rendering approach taught in
 // Week 5 (Step 6, "Conditional Rendering") for showing different
 // content depending on whether someone is logged in.
-import { currentUser, logOut } from '../auth.js'
+//
+// BR (C.2): The Council Dashboard and Manage Users links each use their
+// own v-if, checking currentUser.value?.role against the ROLES constant,
+// so a resident never even sees a link to a page they are not allowed
+// to open. This is the same conditional-rendering idea as the BR (C.1)
+// login/logout switch above, just checked against a role instead of a
+// plain logged-in/logged-out flag - the actual access control still
+// happens in the router guard in router/index.js, this only hides the
+// links so the navbar matches what each account is allowed to do.
+import { currentUser, logOut, ROLES } from '../auth.js'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -40,6 +49,23 @@ function handleLogOut() {
           <li class="nav-item">
             <router-link class="nav-link" to="/post" exact-active-class="active"
               >Post an Item</router-link
+            >
+          </li>
+
+          <!-- BR (C.2): Only Council Officer and Admin accounts see this link. -->
+          <li
+            v-if="currentUser?.role === ROLES.COUNCIL_OFFICER || currentUser?.role === ROLES.ADMIN"
+            class="nav-item"
+          >
+            <router-link class="nav-link" to="/council-dashboard" exact-active-class="active"
+              >Council Dashboard</router-link
+            >
+          </li>
+
+          <!-- BR (C.2): Only Admin accounts see this link. -->
+          <li v-if="currentUser?.role === ROLES.ADMIN" class="nav-item">
+            <router-link class="nav-link" to="/admin/users" exact-active-class="active"
+              >Manage Users</router-link
             >
           </li>
 

@@ -2,6 +2,7 @@
 // BR (A.1): Composition API, script setup, plain ref() for state.
 import { ref, computed } from 'vue'
 import suburbList from '../assets/json/suburbs.json'
+import { submittedCards } from '../listings.js'
 
 const formData = ref({
   title: '',
@@ -46,7 +47,9 @@ const errors = ref({
 })
 
 // BR (B.2): Submitted listings are stored in state and rendered dynamically.
-const submittedCards = ref([])
+// BR (C.2): This now comes from the shared listings.js module (moved out
+// of this file) so the Council Officer dashboard can read the same list.
+// It is still an in-memory ref() only, same as before this move.
 
 // Build a YYYY-MM-DD string from local time, not UTC.
 // toISOString() converts to UTC first, which is a day behind once it's

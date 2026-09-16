@@ -1,5 +1,7 @@
 <script setup>
 // BR (C.1): Basic authentication - registration half.
+// BR (C.2): Role selection has been added below so every new account
+// belongs to one of three roles from the start.
 //
 // This page follows the same form-plus-validation pattern taught in
 // Week 4 (Activity 3, "Add Form Validation using Vue"): a formData ref
@@ -8,17 +10,20 @@
 // clears that field's error message.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { loadUsers, saveUser, logIn } from '../auth.js'
+import { loadUsers, saveUser, logIn, ROLES } from '../auth.js'
 
 const router = useRouter()
 
 // formData holds what the resident has typed so far. Matches the
 // object-of-fields shape used for formData in the Week 4 user
-// information form.
+// information form. role defaults to Resident, the most common account
+// type, the same way Week 4's gender select defaulted to its first
+// listed option.
 const formData = ref({
   name: '',
   email: '',
   password: '',
+  role: ROLES.RESIDENT,
 })
 
 // errors holds one message per field, starting at null (meaning "no
@@ -109,10 +114,14 @@ function submitForm() {
   // password as plain text is a known limitation of a client-side-only
   // app with no server to hash it against - there is no database here,
   // just the browser's own storage.
+  // BR (C.2): The role picked in the dropdown below is saved on the
+  // account itself, so every future login already knows which pages
+  // this account is allowed to reach.
   const newUser = {
     name: formData.value.name.trim(),
     email: formData.value.email.trim(),
     password: formData.value.password,
+    role: formData.value.role,
   }
   saveUser(newUser)
 
@@ -181,6 +190,17 @@ function submitForm() {
         <div v-if="errors.password" class="text-danger form-error">
           <span aria-hidden="true">&#9888;</span> {{ errors.password }}
         </div>
+      </div>
+
+      <!-- BR (C.2): Role picker. A plain select, same pattern as the -->
+      <!-- Category dropdown on the Post an Item page. -->
+      <div class="mb-3">
+        <label for="role" class="form-label">I am a</label>
+        <select id="role" v-model="formData.role" class="form-select">
+          <option :value="ROLES.RESIDENT">Resident</option>
+          <option :value="ROLES.COUNCIL_OFFICER">Council Officer</option>
+          <option :value="ROLES.ADMIN">Admin</option>
+        </select>
       </div>
 
       <button type="submit" class="btn btn-success">Create account</button>
