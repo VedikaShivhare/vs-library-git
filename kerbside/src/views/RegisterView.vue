@@ -10,7 +10,7 @@
 // clears that field's error message.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { loadUsers, saveUser, logIn, ROLES } from '../auth.js'
+import { loadUsers, saveUser, logIn, hashPassword, ROLES } from '../auth.js'
 
 const router = useRouter()
 
@@ -97,7 +97,7 @@ function validatePassword(blur) {
   }
 }
 
-function submitForm() {
+async function submitForm() {
   // Run every validator with blur = true so all errors show at once,
   // the same approach used in the Week 4 submitForm function.
   validateName(true)
@@ -110,17 +110,18 @@ function submitForm() {
   }
 
   // BR (C.1): Save the new account into the users array in localStorage
-  // so it is still there the next time the resident visits. Storing the
-  // password as plain text is a known limitation of a client-side-only
-  // app with no server to hash it against - there is no database here,
-  // just the browser's own storage.
+  // so it is still there the next time the resident visits.
   // BR (C.2): The role picked in the dropdown below is saved on the
   // account itself, so every future login already knows which pages
   // this account is allowed to reach.
+  // BR (C.4): hashPassword() runs the password through SHA-256 (see the
+  // comment in auth.js) before it is stored, so the account's actual
+  // password is never written into localStorage - only this hash of it.
+  const passwordHash = await hashPassword(formData.value.password)
   const newUser = {
     name: formData.value.name.trim(),
     email: formData.value.email.trim(),
-    password: formData.value.password,
+    passwordHash,
     role: formData.value.role,
   }
   saveUser(newUser)

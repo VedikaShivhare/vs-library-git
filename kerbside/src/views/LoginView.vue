@@ -10,7 +10,7 @@
 // page, using the same users array from localStorage.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { loadUsers, logIn } from '../auth.js'
+import { loadUsers, logIn, hashPassword } from '../auth.js'
 
 const router = useRouter()
 
@@ -45,7 +45,7 @@ function validatePassword(blur) {
   }
 }
 
-function submitForm() {
+async function submitForm() {
   validateEmail(true)
   validatePassword(true)
   formError.value = null
@@ -59,10 +59,15 @@ function submitForm() {
   // users array. find() looks through the array (the same underlying
   // data structure the registration form writes into) and returns the
   // first matching account, or undefined if nothing matches.
+  // BR (C.4): The entered password is hashed with the same
+  // hashPassword() function Register uses, and the comparison below
+  // checks that hash against the stored passwordHash - the account's
+  // actual password is never held in a variable here for longer than
+  // it takes to hash it.
   const email = formData.value.email.trim()
-  const password = formData.value.password
+  const passwordHash = await hashPassword(formData.value.password)
   const matchedUser = loadUsers().find(
-    (user) => user.email.toLowerCase() === email.toLowerCase() && user.password === password,
+    (user) => user.email.toLowerCase() === email.toLowerCase() && user.passwordHash === passwordHash,
   )
 
   if (!matchedUser) {
