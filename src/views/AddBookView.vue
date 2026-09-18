@@ -22,6 +22,9 @@
 
     <!-- Shows the books already saved in Firestore, right below the form -->
     <BookList />
+
+    <!-- Shows the books sorted by isbn, with only a few results kept -->
+    <SortedBookList />
   </div>
 </template>
 
@@ -33,6 +36,7 @@ import { collection, addDoc } from 'firebase/firestore'
 
 // Brings in the component that lists out the books already saved
 import BookList from '../components/BookList.vue'
+import SortedBookList from '../components/SortedBookList.vue'
 
 // These hold the current values typed into the isbn and name fields
 const isbn = ref('')
