@@ -5,13 +5,13 @@
     <h1>Add book</h1>
 
     <form @submit.prevent="addBook">
-      <!-- Isbn field, saved as a number and required before the form can be submitted -->
+      <!-- Isbn field, required before the form can be submitted -->
       <p>
         <label for="isbn">ISBN</label>
-        <input id="isbn" v-model.number="isbn" type="number" required />
+        <input id="isbn" v-model="isbn" type="number" required />
       </p>
 
-      <!-- Name field, saved as text and required before the form can be submitted -->
+      <!-- Name field, required before the form can be submitted -->
       <p>
         <label for="name">Name</label>
         <input id="name" v-model="name" type="text" required />
@@ -19,30 +19,48 @@
 
       <button type="submit">Add book</button>
     </form>
+
+    <!-- Shows the books already saved in Firestore, right below the form -->
+    <BookList />
   </div>
 </template>
 
 <script setup>
 // Bringing in the tools needed to talk to Firestore and to keep track of the form values
 import { ref } from 'vue'
-import { addDoc, collection } from 'firebase/firestore'
-import db from '../firebase/init'
+import db from '../firebase/init.js'
+import { collection, addDoc } from 'firebase/firestore'
+
+// Brings in the component that lists out the books already saved
+import BookList from '../components/BookList.vue'
 
 // These hold the current values typed into the isbn and name fields
-const isbn = ref(null)
+const isbn = ref('')
 const name = ref('')
 
 // This runs when the form is submitted
 // The submit.prevent on the form already stops the page from reloading
-// It takes the isbn and name the user typed in and adds them as a new document
-// inside the books collection in Firestore, then clears the form for the next entry
 const addBook = async () => {
-  await addDoc(collection(db, 'books'), {
-    isbn: isbn.value,
-    name: name.value
-  })
+  try {
+    // The isbn field comes in as text, so it is turned into a proper number here
+    const isbnNumber = Number(isbn.value)
+    if (isNaN(isbnNumber)) {
+      alert('Please enter a valid ISBN number.')
+      return
+    }
 
-  isbn.value = null
-  name.value = ''
+    // Adds a new document to the books collection with the isbn and name typed in
+    await addDoc(collection(db, 'books'), {
+      isbn: isbnNumber,
+      name: name.value
+    })
+
+    // Clears the form and lets the user know it worked
+    isbn.value = ''
+    name.value = ''
+    alert('Book added successfully!')
+  } catch (error) {
+    console.error('Error adding book: ', error)
+  }
 }
 </script>
