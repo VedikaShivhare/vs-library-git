@@ -8,6 +8,7 @@ import Aura from '@primevue/themes/aura'
 import App from './App.vue'
 import router from './router'
 
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: 'AIzaSyCzb1QhrYuJwmuI7jxkbWq6d4oy_Sls0PE',
   authDomain: 'fit5032-6e8e6.firebaseapp.com',
@@ -17,6 +18,7 @@ const firebaseConfig = {
   appId: '1:144821261707:web:95afebf40808280d2e4b8e'
 }
 
+// Initialise Firebase
 initializeApp(firebaseConfig)
 
 const app = createApp(App)
