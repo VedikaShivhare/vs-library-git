@@ -1,45 +1,41 @@
 <template>
-  <!-- This shows the list of books that are currently stored in Firestore -->
-  <!-- It updates on its own whenever a new book is added -->
-  <div class="mt-4">
-    <h2>Books in the library</h2>
-
-    <p v-if="books.length === 0">No books have been added yet.</p>
-
-    <ul v-else>
-      <li v-for="book in books" :key="book.id">{{ book.name }} (ISBN {{ book.isbn }})</li>
+  <!-- This shows only the books whose isbn is greater than 1000 -->
+  <!-- The list is fetched once from Firestore using a query with a where statement -->
+  <div>
+    <h1>Books with ISBN &gt; 1000</h1>
+    <ul>
+      <li v-for="book in books" :key="book.id">{{ book.name }} (ISBN: {{ book.isbn }})</li>
     </ul>
   </div>
 </template>
 
 <script setup>
-// Bringing in the tools needed to read live data from Firestore
-import { ref, onMounted, onUnmounted } from 'vue'
-import { collection, onSnapshot } from 'firebase/firestore'
-import db from '../firebase/init'
+// Bringing in the tools needed to query Firestore and to keep track of the results
+import { ref, onMounted } from 'vue'
+import db from '../firebase/init.js'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 
-// This holds the current list of books shown on the page
+// This holds the books that come back from the query
 const books = ref([])
 
-// This will store the function that stops listening to Firestore
-// once the component is no longer on screen
-let unsubscribe = null
-
-// When the page loads, start listening to the books collection
-// Every time a book is added, changed or removed, this list updates automatically
-onMounted(() => {
-  unsubscribe = onSnapshot(collection(db, 'books'), (snapshot) => {
-    books.value = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-  })
-})
-
-// When the page is closed, stop listening so it does not keep running in the background
-onUnmounted(() => {
-  if (unsubscribe) {
-    unsubscribe()
+// This looks through the books collection and only keeps the ones
+// where the isbn field is greater than 1000
+const fetchBooks = async () => {
+  try {
+    const q = query(collection(db, 'books'), where('isbn', '>', 1000))
+    const querySnapshot = await getDocs(q)
+    const booksArray = []
+    querySnapshot.forEach((doc) => {
+      booksArray.push({ id: doc.id, ...doc.data() })
+    })
+    books.value = booksArray
+  } catch (error) {
+    console.error('Error fetching books: ', error)
   }
+}
+
+// Runs the query as soon as the component is loaded onto the page
+onMounted(() => {
+  fetchBooks()
 })
 </script>
