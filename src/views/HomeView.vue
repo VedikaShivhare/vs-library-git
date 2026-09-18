@@ -1,7 +1,36 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
+import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+
+const auth = getAuth()
+const router = useRouter()
+const currentUser = ref(auth.currentUser)
+const roles = {
+  'vedika@gmail.com': 'Admin',
+  'admin.fit5032@example.com': 'Admin',
+  'member.fit5032@example.com': 'Member'
+}
+const userRole = computed(() => roles[currentUser.value?.email] || 'Member')
+const unsubscribe = onAuthStateChanged(auth, (user) => {
+  currentUser.value = user
+})
+
+onUnmounted(unsubscribe)
+
+const logout = () => {
+  signOut(auth)
+    .then(() => {
+      console.log('Firebase Sign out Successful!')
+      console.log(auth.currentUser) // To check the current user after logout
+      router.push('/FireLogin')
+    })
+    .catch((error) => {
+      console.log(error.code)
+    })
+}
 
 const formData = ref({
   username: '',
@@ -80,6 +109,12 @@ const submitForm = () => {
 
 <template>
   <div class="container mt-5">
+    <div v-if="currentUser" class="text-center mb-4">
+      <h2>{{ userRole }} account</h2>
+      <p>Signed in as {{ currentUser.email }}</p>
+      <button class="btn btn-danger" @click="logout">Log out</button>
+    </div>
+
     <div class="row">
       <div class="col-md-8 offset-md-2">
         <h1>🗄️ W5. Library Registration Form</h1>
