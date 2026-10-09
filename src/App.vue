@@ -21,7 +21,8 @@ import BHeader from './components/BHeader.vue'
 const route = useRoute()
 
 // Computed property replacing the old computed option
+// The header is hidden on both API pages so they only show JSON
 const showHeader = computed(() => {
-  return route.name !== 'CountBookAPI'
+  return route.name !== 'CountBookAPI' && route.name !== 'GetAllBookAPI'
 })
 </script>

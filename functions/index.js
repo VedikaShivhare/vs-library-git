@@ -22,6 +22,27 @@ exports.countBooks = onRequest((req, res) => {
   });
 });
 
+/**
+ * HTTP function that reads every document in the books collection
+ * and returns all books as JSON, including each document id.
+ */
+exports.getAllBooks = onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const booksCollection = admin.firestore().collection("books");
+      const snapshot = await booksCollection.get();
+      const books = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      res.status(200).json(books);
+    } catch (error) {
+      console.error("Error getting books:", error.message);
+      res.status(500).send("Error getting books");
+    }
+  });
+});
+
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 
 /**

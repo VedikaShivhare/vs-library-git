@@ -39,6 +39,11 @@
             Count Book API
           </router-link>
         </li>
+        <li class="nav-item">
+          <router-link to="/GetAllBookAPI" class="nav-link" active-class="active">
+            Get All Book API
+          </router-link>
+        </li>
       </ul>
     </header>
   </div>
