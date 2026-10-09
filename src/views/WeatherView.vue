@@ -93,7 +93,12 @@ const fetchCurrentLocationWeather = async () => {
  */
 const searchByCity = async () => {
   if (!city.value) return
-  const url = `https://api.openweathermap.org/data/2.5/weather?q=${city.value}&appid=${apikey}`
+  // Removes the spaces around the comma so "Clayton, AU" is sent as "Clayton,AU"
+  const searchText = city.value
+    .split(',')
+    .map((part) => part.trim())
+    .join(',')
+  const url = `https://api.openweathermap.org/data/2.5/weather?q=${searchText}&appid=${apikey}`
   await fetchWeatherData(url)
   city.value = ''
 }
