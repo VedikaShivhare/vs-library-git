@@ -42,3 +42,7 @@ npm run build
 ```sh
 npm run lint
 ```
+
+## Week 12 GitHub Pages
+
+The eFolio app is built and deployed by GitHub Actions to https://vedikashivhare.github.io/vs-library-git/
