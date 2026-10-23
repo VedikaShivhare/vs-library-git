@@ -57,8 +57,9 @@ const routes = [
   }
 ]
 
+// Uses the base path from vite.config.js so every route works under /vs-library-git/ on GitHub Pages
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
